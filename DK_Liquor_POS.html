@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D&K Liquor POS & Business System</title>
+<style>
+:root{--nav:#102a43;--blue:#1f6feb;--bg:#f5f7fa;--card:#fff;--text:#1f2937;--muted:#64748b;--green:#16803c;--red:#c62828;--orange:#d97706;--border:#dbe2ea}
+*{box-sizing:border-box}body{margin:0;font-family:Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--text)}
+button,input,select,textarea{font:inherit}button{cursor:pointer;border:0;border-radius:7px;padding:10px 14px}
+.app{display:flex;min-height:100vh}.sidebar{width:235px;background:var(--nav);color:white;padding:18px 12px;position:fixed;top:0;bottom:0;left:0;overflow:auto}
+.brand{font-size:21px;font-weight:800;padding:10px 10px 20px}.brand small{display:block;font-size:11px;font-weight:400;color:#b9c9d8;margin-top:4px}
+.nav button{width:100%;text-align:left;background:transparent;color:#d9e6f2;margin:2px 0;padding:11px 12px}.nav button:hover,.nav button.active{background:#1d4669;color:white}
+.main{margin-left:235px;width:calc(100% - 235px);padding:20px}.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.topbar h1{margin:0;font-size:25px}.clock{color:var(--muted)}
+.page{display:none}.page.active{display:block}.grid{display:grid;gap:14px}.g4{grid-template-columns:repeat(4,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:repeat(2,1fr)}
+.card{background:var(--card);border:1px solid var(--border);border-radius:11px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.04)}.card h3{margin:0 0 12px}.metric{font-size:25px;font-weight:800}.muted{color:var(--muted);font-size:13px}
+.btn{background:var(--blue);color:#fff}.btn.secondary{background:#e8eef5;color:var(--nav)}.btn.green{background:var(--green)}.btn.red{background:var(--red)}.btn.orange{background:var(--orange)}
+input,select,textarea{width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:7px;background:white}label{font-size:12px;font-weight:700;color:#475569;display:block;margin-bottom:5px}.formgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.formgrid .wide{grid-column:span 2}.actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
+table{width:100%;border-collapse:collapse;background:#fff}th,td{padding:9px 8px;border-bottom:1px solid var(--border);font-size:13px;text-align:left}th{background:#edf3f8;color:#29445e}td.num{text-align:right}.pill{display:inline-block;padding:3px 8px;border-radius:99px;font-size:11px;font-weight:700;background:#e8eef5}.pill.green{background:#dff3e5;color:#146c36}.pill.red{background:#fde2e2;color:#9c1c1c}.pill.orange{background:#fff0d5;color:#9a5a00}
+.pos{display:grid;grid-template-columns:1.45fr .9fr;gap:15px}.products{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;max-height:65vh;overflow:auto}.product{background:white;border:1px solid var(--border);border-radius:9px;padding:12px;text-align:left}.product:hover{border-color:var(--blue);box-shadow:0 3px 10px rgba(31,111,235,.12)}.product .name{font-weight:700}.product .price{margin-top:8px;font-weight:800;color:var(--green)}.product .stock{font-size:11px;color:var(--muted);margin-top:4px}
+.cart{position:sticky;top:10px}.cartrows{max-height:43vh;overflow:auto}.cartrow{display:grid;grid-template-columns:1fr 60px 82px 28px;gap:6px;align-items:center;border-bottom:1px solid var(--border);padding:9px 0}.qty{display:flex;align-items:center;gap:4px}.qty button{padding:4px 7px;background:#e8eef5}.totals{border-top:2px solid var(--nav);margin-top:10px;padding-top:10px}.totalline{display:flex;justify-content:space-between;padding:4px 0}.grand{font-size:20px;font-weight:800}
+.search{margin-bottom:10px}.hide{display:none!important}.alert{padding:10px;border-radius:8px;background:#fff3cd;color:#7a5400;margin-bottom:10px}.success{background:#dff3e5;color:#146c36}.danger{background:#fde2e2;color:#9c1c1c}
+@media(max-width:1100px){.g4,.products{grid-template-columns:repeat(2,1fr)}.formgrid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:750px){.sidebar{position:relative;width:100%;height:auto}.app{display:block}.main{margin:0;width:100%}.pos{grid-template-columns:1fr}.cart{position:static}}
+@media print{body *{visibility:hidden}.receipt-print,.receipt-print *{visibility:visible}.receipt-print{position:absolute;left:0;top:0;width:80mm}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+  <div class="brand">D&K LIQUOR<small>POS & BUSINESS CONTROL SYSTEM</small></div>
+  <div class="nav" id="nav"></div>
+</aside>
+<main class="main">
+  <div class="topbar"><h1 id="pageTitle">Dashboard</h1><div class="clock" id="clock"></div></div>
+  <div id="app"></div>
+</main>
+</div>
+
+<script>
+const KEY='DK_LIQUOR_POS_V1';
+const money=n=>'UGX '+Number(n||0).toLocaleString('en-UG',{maximumFractionDigits:0});
+const today=()=>new Date().toISOString().slice(0,10);
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+let db=JSON.parse(localStorage.getItem(KEY)||'null')||{
+ settings:{company:'D&K Liquor',currency:'UGX',taxRate:0,receiptFooter:'Thank you for your business.'},
+ opening:{cash:0,bank:0,mobile:0,inventory:0,receivables:0,payables:0,debt:0,assets:0,equity:0},
+ products:[], customers:[], suppliers:[], sales:[], purchases:[], expenses:[], receipts:[], payments:[],
+ loans:[], assets:[], equity:[], cashflow:[]
+};
+function save(){localStorage.setItem(KEY,JSON.stringify(db))}
+function fmtDate(x){return x?new Date(x).toLocaleDateString('en-GB'):''}
+function sum(a,fn){return a.reduce((s,x)=>s+(Number(fn(x))||0),0)}
+function nav(){
+ const items=[['dashboard','Dashboard'],['pos','Point of Sale'],['products','Products & Inventory'],['customers','Customers'],['purchases','Purchases'],['expenses','Expenses'],['receivables','Receivables'],['payables','Payables'],['loans','Loans'],['assets','Fixed Assets'],['equity','Equity'],['reports','Financial Reports'],['settings','Setup / Backup']];
+ document.getElementById('nav').innerHTML=items.map(x=>`<button data-page="${x[0]}">▸ ${x[1]}</button>`).join('');
+ document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>show(b.dataset.page));
+}
+nav();
+setInterval(()=>document.getElementById('clock').textContent=new Date().toLocaleString(),1000);
+
+function show(page){
+ document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
+ document.getElementById('pageTitle').textContent=({dashboard:'Dashboard',pos:'Point of Sale',products:'Products & Inventory',customers:'Customers',purchases:'Purchases',expenses:'Expenses',receivables:'Receivables',payables:'Payables',loans:'Loans',assets:'Fixed Assets',equity:'Equity',reports:'Financial Reports',settings:'Setup / Backup'})[page];
+ const f={dashboard:dashboard,pos:pos,products:products,customers:customers,purchases:purchases,expenses:expenses,receivables:receivables,payables:payables,loans:loans,assets:assets,equity:equity,reports:reports,settings:settings}[page];
+ f(); window.scrollTo(0,0);
+}
+
+function dashboard(){
+ const rev=sum(db.sales,s=>s.total), exp=sum(db.expenses,e=>e.amount)+sum(db.purchases,p=>p.paid||0), profit=rev-sum(db.sales,s=>s.cost)-sum(db.expenses,e=>e.amount);
+ const cash=db.opening.cash+sum(db.cashflow,x=>x.account==='Cash'?x.in-x.out:0);
+ const bank=db.opening.bank+sum(db.cashflow,x=>x.account==='Bank'?x.in-x.out:0);
+ const mobile=db.opening.mobile+sum(db.cashflow,x=>x.account==='Mobile Money'?x.in-x.out:0);
+ const stock=sum(db.products,p=>(p.stock||0)*(p.cost||0));
+ const ar=db.opening.receivables+sum(db.sales,s=>s.credit? s.total-(s.paid||0):0)-sum(db.receipts,r=>r.amount);
+ const ap=db.opening.payables+sum(db.purchases,p=>(p.total||0)-(p.paid||0))-sum(db.payments,p=>p.amount);
+ const debt=db.opening.debt+sum(db.loans,l=>l.balance||0);
+ const low=db.products.filter(p=>(p.stock||0)<=(p.reorder||0)&&p.name);
+ document.getElementById('app').innerHTML=`
+ <div class="grid g4">
+ ${metric('Sales',money(rev),'Revenue recorded')}
+ ${metric('Gross Profit',money(profit),'Sales less product cost')}
+ ${metric('Cash Position',money(cash+bank+mobile),'Cash + bank + mobile')}
+ ${metric('Inventory',money(stock),low.length+' item(s) at/below reorder')}
+ </div>
+ <div class="grid g4" style="margin-top:14px">
+ ${metric('Receivables',money(ar),'Customer balances')}
+ ${metric('Payables',money(ap),'Supplier balances')}
+ ${metric('Debt',money(debt),'Outstanding loans')}
+ ${metric('Expenses',money(sum(db.expenses,e=>e.amount)),'Operating expenses')}
+ </div>
+ <div class="grid g2" style="margin-top:14px">
+ <div class="card"><h3>Quick Actions</h3><div class="actions">
+ <button class="btn" onclick="show('pos')">New Sale</button><button class="btn green" onclick="show('products')">Add Product</button>
+ <button class="btn orange" onclick="show('purchases')">Record Purchase</button><button class="btn secondary" onclick="show('expenses')">Record Expense</button>
+ </div></div>
+ <div class="card"><h3>Control Checks</h3>
+ <div class="${profit>=0?'alert success':'alert danger'}">${profit>=0?'Recorded sales are above product cost and operating expenses.':'Recorded costs/expenses exceed recorded sales — review pricing, stock cost and expenses.'}</div>
+ <div class="${low.length?'alert':'alert success'}">${low.length?'<b>Reorder:</b> '+low.map(p=>esc(p.name)).join(', '):'No products are currently at or below their reorder level.'}</div>
+ </div></div>
+ <div class="card" style="margin-top:14px"><h3>Recent Sales</h3>${salesTable(db.sales.slice(-10).reverse())}</div>`;
+}
+function metric(a,b,c){return `<div class="card"><div class="muted">${a}</div><div class="metric">${b}</div><div class="muted">${c}</div></div>`}
+
+let cart=[];
+function pos(){
+ document.getElementById('app').innerHTML=`
+ <div class="pos">
+ <div class="card"><h3>Products</h3><input class="search" id="productSearch" placeholder="Search product / SKU / category" oninput="renderProducts()"><div id="productGrid" class="products"></div></div>
+ <div class="card cart"><h3>Current Sale</h3>
+ <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div><label>Customer</label><select id="saleCustomer"><option value="">Walk-in customer</option>${db.customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></div>
+ <div><label>Payment</label><select id="salePay"><option>Cash</option><option>Bank</option><option>Mobile Money</option><option>Credit</option></select></div></div>
+ <div id="cartRows" class="cartrows"></div><div class="totals" id="cartTotals"></div>
+ <div class="actions"><button class="btn green" onclick="completeSale()">Complete Sale</button><button class="btn secondary" onclick="clearCart()">Clear</button></div>
+ </div></div>`;
+ renderProducts(); renderCart();
+}
+function renderProducts(){
+ const q=(document.getElementById('productSearch')?.value||'').toLowerCase();
+ const ps=db.products.filter(p=>(p.name+' '+(p.sku||'')+' '+(p.category||'')).toLowerCase().includes(q));
+ document.getElementById('productGrid').innerHTML=ps.map(p=>`<button class="product" onclick="addCart('${p.id}')"><div class="name">${esc(p.name)}</div><div class="muted">${esc(p.sku||'')}</div><div class="price">${money(p.price)}</div><div class="stock">Stock: ${p.stock||0}</div></button>`).join('')||'<div class="muted">No products. Add products under Products & Inventory.</div>';
+}
+function addCart(id){
+ const p=db.products.find(x=>x.id===id); if(!p)return;
+ const row=cart.find(x=>x.id===id); const q=row?.qty||0;
+ if(q+1>(p.stock||0)){alert('Not enough stock.');return}
+ if(row)row.qty++;else cart.push({id,qty:1});
+ renderCart();
+}
+function renderCart(){
+ const box=document.getElementById('cartRows'); if(!box)return;
+ box.innerHTML=cart.map(x=>{const p=db.products.find(z=>z.id===x.id);return `<div class="cartrow"><div><b>${esc(p.name)}</b><div class="muted">${money(p.price)} each</div></div><div class="qty"><button onclick="changeQty('${x.id}',-1)">−</button>${x.qty}<button onclick="changeQty('${x.id}',1)">+</button></div><div class="num">${money(p.price*x.qty)}</div><button onclick="removeCart('${x.id}')" class="btn red" style="padding:4px 7px">×</button></div>`}).join('')||'<div class="muted">Cart is empty.</div>';
+ const sub=sum(cart,x=>{const p=db.products.find(z=>z.id===x.id);return p.price*x.qty});
+ const tax=sub*(Number(db.settings.taxRate)||0)/100;
+ document.getElementById('cartTotals').innerHTML=`<div class="totalline"><span>Subtotal</span><b>${money(sub)}</b></div><div class="totalline"><span>Tax</span><b>${money(tax)}</b></div><div class="totalline grand"><span>Total</span><b>${money(sub+tax)}</b></div>`;
+}
+function changeQty(id,d){const x=cart.find(a=>a.id===id),p=db.products.find(a=>a.id===id);if(!x)return;if(d>0&&(x.qty+1>p.stock))return;if((x.qty+=d)<=0)cart=cart.filter(a=>a.id!==id);renderCart()}
+function removeCart(id){cart=cart.filter(x=>x.id!==id);renderCart()}
+function clearCart(){cart=[];renderCart()}
+function completeSale(){
+ if(!cart.length)return alert('Add products first.');
+ const pay=document.getElementById('salePay').value, customer=document.getElementById('saleCustomer').value;
+ const sub=sum(cart,x=>{const p=db.products.find(z=>z.id===x.id);return p.price*x.qty}), tax=sub*(Number(db.settings.taxRate)||0)/100,total=sub+tax;
+ if(pay==='Credit'&&!customer)return alert('Select a customer for a credit sale.');
+ const sale={id:uid(),date:new Date().toISOString(),number:nextNo(),customer,method:pay,total,cost:sum(cart,x=>{const p=db.products.find(z=>z.id===x.id);return p.cost*x.qty}),credit:pay==='Credit',paid:pay==='Credit'?0:total,items:cart.map(x=>{const p=db.products.find(z=>z.id===x.id);p.stock-=x.qty;return {id:p.id,name:p.name,qty:x.qty,price:p.price,cost:p.cost}})};
+ db.sales.push(sale);
+ if(pay!=='Credit')db.cashflow.push({id:uid(),date:sale.date,ref:sale.number,description:'POS sale',account:pay==='Mobile Money'?'Mobile Money':pay==='Bank'?'Bank':'Cash',in:total,out:0});
+ save(); cart=[]; receipt(sale); pos();
+}
+function nextNo(){return 'POS-'+String(db.sales.length+1001)}
+function receipt(s){
+ const html=`<div class="receipt-print" style="font-family:Arial;padding:12px;width:80mm"><h2 style="text-align:center;margin:0">${esc(db.settings.company)}</h2><div style="text-align:center">${fmtDate(s.date)}<br>${s.number}</div><hr>${s.items.map(i=>`<div style="display:flex;justify-content:space-between"><span>${esc(i.name)} × ${i.qty}</span><span>${money(i.price*i.qty)}</span></div>`).join('')}<hr><div style="display:flex;justify-content:space-between;font-weight:bold"><span>TOTAL</span><span>${money(s.total)}</span></div><p>Payment: ${esc(s.method)}</p><p style="text-align:center">${esc(db.settings.receiptFooter)}</p></div>`;
+ const w=window.open('','_blank','width=420,height=650'); w.document.write(html);w.document.close();w.print();
+}
+
+function products(){
+ document.getElementById('app').innerHTML=`<div class="card"><h3>Product & Stock Master</h3>
+ <div class="formgrid"><div><label>Name</label><input id="pn"></div><div><label>SKU</label><input id="psku"></div><div><label>Category</label><input id="pcat" placeholder="Whisky, Gin, Wine..."></div><div><label>Supplier</label><input id="psup"></div>
+ <div><label>Buy Cost</label><input id="pcost" type="number"></div><div><label>Selling Price</label><input id="pprice" type="number"></div><div><label>Opening / Current Stock</label><input id="pstock" type="number"></div><div><label>Reorder Level</label><input id="preorder" type="number"></div><div class="wide"><label>Budget for Item</label><input id="pbudget" type="number"></div></div>
+ <div class="actions"><button class="btn green" onclick="addProduct()">Save Product</button></div></div>
+ <div class="card" style="margin-top:14px"><h3>Inventory</h3>${productTable()}</div>`;
+}
+function addProduct(){
+ const p={id:uid(),name:v('pn'),sku:v('psku'),category:v('pcat'),supplier:v('psup'),cost:+v('pcost')||0,price:+v('pprice')||0,stock:+v('pstock')||0,reorder:+v('preorder')||0,budget:+v('pbudget')||0};
+ if(!p.name)return alert('Product name required.');db.products.push(p);save();products();
+}
+function productTable(){return `<table><thead><tr><th>Product</th><th>SKU</th><th>Category</th><th>Cost</th><th>Price</th><th>Stock</th><th>Stock Value</th><th>Reorder</th><th></th></tr></thead><tbody>${db.products.map(p=>`<tr><td>${esc(p.name)}</td><td>${esc(p.sku)}</td><td>${esc(p.category)}</td><td class="num">${money(p.cost)}</td><td class="num">${money(p.price)}</td><td>${p.stock}</td><td class="num">${money(p.stock*p.cost)}</td><td>${p.reorder}</td><td><button class="btn red" onclick="deleteProduct('${p.id}')">Delete</button></td></tr>`).join('')||'<tr><td colspan=9>No products yet.</td></tr>'}</tbody></table>`}
+function deleteProduct(id){if(confirm('Delete this product?')){db.products=db.products.filter(p=>p.id!==id);save();products()}}
+
+function customers(){
+ document.getElementById('app').innerHTML=`<div class="card"><h3>Customer Master</h3><div class="formgrid"><div><label>Name</label><input id="cn"></div><div><label>Phone</label><input id="cp"></div><div class="wide"><label>Address / Notes</label><input id="ca"></div></div><div class="actions"><button class="btn green" onclick="addCustomer()">Add Customer</button></div></div><div class="card" style="margin-top:14px"><h3>Customers</h3><table><tr><th>Name</th><th>Phone</th><th>Receivable</th><th></th></tr>${db.customers.map(c=>`<tr><td>${esc(c.name)}</td><td>${esc(c.phone)}</td><td>${money(arFor(c.id))}</td><td><button class="btn red" onclick="del('customers','${c.id}');customers()">Delete</button></td></tr>`).join('')}</table></div>`;
+}
+function arFor(id){return sum(db.sales,s=>s.customer===id&&s.credit?s.total-s.paid:0)-sum(db.receipts,r=>r.customer===id?r.amount:0)}
+function addCustomer(){const c={id:uid(),name:v('cn'),phone:v('cp'),address:v('ca')};if(!c.name)return alert('Name required');db.customers.push(c);save();customers()}
+
+function purchases(){
+ document.getElementById('app').innerHTML=`<div class="card"><h3>Record Inventory Purchase</h3><div class="formgrid"><div><label>Product</label><select id="buyProd">${db.products.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></div><div><label>Supplier</label><input id="buySup"></div><div><label>Quantity</label><input id="buyQty" type="number" value="1"></div><div><label>Unit Cost</label><input id="buyCost" type="number"></div><div><label>Total Paid</label><input id="buyPaid" type="number" value="0"></div><div><label>Payment Account</label><select id="buyAcct"><option>Cash</option><option>Bank</option><option>Mobile Money</option><option>Credit</option></select></div><div class="wide"><label>Notes</label><input id="buyNote"></div></div><div class="actions"><button class="btn green" onclick="recordPurchase()">Record Purchase</button></div></div><div class="card" style="margin-top:14px"><h3>Recent Purchases</h3><table><tr><th>Date</th><th>Product</th><th>Supplier</th><th>Qty</th><th>Total</th><th>Paid</th><th>Balance</th></tr>${db.purchases.slice(-30).reverse().map(p=>`<tr><td>${fmtDate(p.date)}</td><td>${esc(p.productName)}</td><td>${esc(p.supplier)}</td><td>${p.qty}</td><td class="num">${money(p.total)}</td><td class="num">${money(p.paid)}</td><td class="num">${money(p.total-p.paid)}</td></tr>`).join('')}</table></div>`;
+}
+function recordPurchase(){
+ const p=db.products.find(x=>x.id===v('buyProd'));if(!p)return alert('Create a product first.');
+ const q=+v('buyQty')||0,c=+v('buyCost')||0,paid=+v('buyPaid')||0,total=q*c;
+ p.stock+=q;p.cost=c;
+ const x={id:uid(),date:new Date().toISOString(),productId:p.id,productName:p.name,supplier:v('buySup'),qty:q,cost:c,total,paid};
+ db.purchases.push(x);
+ if(paid)db.cashflow.push({id:uid(),date:x.date,ref:'PUR-'+x.id,description:'Inventory purchase',account:v('buyAcct')==='Credit'?'Cash':v('buyAcct'),in:0,out:paid});
+ save();purchases();
+}
+
+function expenses(){
+ document.getElementById('app').innerHTML=`<div class="card"><h3>Record Expense</h3><div class="formgrid"><div><label>Date</label><input id="ed" type="date" value="${today()}"></div><div><label>Category</label><input id="ec" placeholder="Rent, Transport, Payroll..."></div><div class="wide"><label>Description</label><input id="ex"></div><div><label>Amount</label><input id="ea" type="number"></div><div><label>Account</label><select id="eacct"><option>Cash</option><option>Bank</option><option>Mobile Money</option><option>Credit</option></select></div><div><label>Vendor</label><input id="ev"></div></div><div class="actions"><button class="btn orange" onclick="recordExpense()">Record Expense</button></div></div><div class="card" style="margin-top:14px"><h3>Expenses</h3>${expenseTable()}</div>`;
+}
+function recordExpense(){const e={id:uid(),date:v('ed'),category:v('ec'),description:v('ex'),amount:+v('ea')||0,account:v('eacct'),vendor:v('ev')};if(!e.amount)return alert('Enter an amount.');db.expenses.push(e);if(e.account!=='Credit')db.cashflow.push({id:uid(),date:e.date,ref:'EXP-'+e.id,description:e.description,account:e.account,in:0,out:e.amount});save();expenses()}
+function expenseTable(){return `<table><tr><th>Date</th><th>Category</th><th>Description</th><th>Account</th><th>Amount</th></tr>${db.expenses.slice(-40).reverse().map(e=>`<tr><td>${fmtDate(e.date)}</td><td>${esc(e.category)}</td><td>${esc(e.description)}</td><td>${esc(e.account)}</td><td class="num">${money(e.amount)}</td></tr>`).join('')}</table>`}
+
+function receivables(){
+ const rows=db.sales.filter(s=>s.credit).map(s=>{const paid=sum(db.receipts,r=>r.saleId===s.id?r.amount:0);return {...s,balance:s.total-paid}}).filter(x=>x.balance>0);
+ document.getElementById('app').innerHTML=`<div class="card"><h3>Customer Receivables</h3><div class="formgrid"><div><label>Customer</label><select id="rcust">${db.customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></div><div><label>Sale / Invoice</label><select id="rsale">${db.sales.filter(s=>s.credit).map(s=>`<option value="${s.id}">${s.number} — ${money(s.total-s.paid)}</option>`).join('')}</select></div><div><label>Amount Received</label><input id="ramt" type="number"></div><div><label>Account</label><select id="racct"><option>Cash</option><option>Bank</option><option>Mobile Money</option></select></div></div><div class="actions"><button class="btn green" onclick="receivePayment()">Receive Payment</button></div></div><div class="card" style="margin-top:14px"><h3>Outstanding</h3><table><tr><th>Invoice</th><th>Customer</th><th>Date</th><th>Total</th><th>Paid</th><th>Balance</th></tr>${rows.map(s=>`<tr><td>${s.number}</td><td>${esc(db.customers.find(c=>c.id===s.customer)?.name||'')}</td><td>${fmtDate(s.date)}</td><td class="num">${money(s.total)}</td><td class="num">${money(s.total-s.balance)}</td><td class="num">${money(s.balance)}</td></tr>`).join('')}</table></div>`;
+}
+function receivePayment(){const s=db.sales.find(x=>x.id===v('rsale'));if(!s)return;const a=+v('ramt')||0;if(!a)return;db.receipts.push({id:uid(),date:new Date().toISOString(),saleId:s.id,customer:s.customer,amount:a});db.cashflow.push({id:uid(),date:new Date().toISOString(),ref:'REC-'+s.number,description:'Customer payment',account:v('racct'),in:a,out:0});save();receivables()}
+
+function payables(){
+ const rows=db.purchases.filter(p=>p.total-p.paid>0);
+ document.getElementById('app').innerHTML=`<div class="card"><h3>Supplier Payables</h3><div class="formgrid"><div><label>Purchase</label><select id="pp">${rows.map(p=>`<option value="${p.id}">${esc(p.productName)} — ${money(p.total-p.paid)}</option>`).join('')}</select></div><div><label>Amount Paid</label><input id="pamt" type="number"></div><div><label>Account</label><select id="pacct"><option>Cash</option><option>Bank</option><option>Mobile Money</option></select></div></div><div class="actions"><button class="btn green" onclick="paySupplier()">Pay Supplier</button></div></div><div class="card" style="margin-top:14px"><h3>Outstanding Supplier Balances</h3><table><tr><th>Date</th><th>Supplier</th><th>Product</th><th>Total</th><th>Paid</th><th>Balance</th></tr>${rows.map(p=>`<tr><td>${fmtDate(p.date)}</td><td>${esc(p.supplier)}</td><td>${esc(p.productName)}</td><td class="num">${money(p.total)}</td><td class="num">${money(p.paid)}</td><td class="num">${money(p.total-p.paid)}</td></tr>`).join('')}</table></div>`;
+}
+function paySupplier(){const p=db.purchases.find(x=>x.id===v('pp'));if(!p)return;const a=+v('pamt')||0;p.paid+=a;db.payments.push({id:uid(),date:new Date().toISOString(),purchaseId:p.id,amount:a});db.cashflow.push({id:uid(),date:new Date().toISOString(),ref:'PAY-'+p.id,description:'Supplier payment',account:v('pacct'),in:0,out:a});save();payables()}
+
+function loans(){
+ document.getElementById('app').innerHTML=`<div class="card"><h3>Debt & Loan Register</h3><div class="formgrid"><div><label>Lender</label><input id="ln"></div><div><label>Original Amount</label><input id="lo" type="number"></div><div><label>Interest Rate %</label><input id="lr" type="number" value="0"></div><div><label>Start Date</label><input id="ld" type="date" value="${today()}"></div></div><div class="actions"><button class="btn green" onclick="addLoan()">Add Loan</button></div></div><div class="card" style="margin-top:14px"><h3>Loans</h3><table><tr><th>Lender</th><th>Original</th><th>Principal Paid</th><th>Balance</th><th>Rate</th><th></th></tr>${db.loans.map(l=>`<tr><td>${esc(l.lender)}</td><td class="num">${money(l.original)}</td><td class="num">${money(l.paid)}</td><td class="num">${money(l.balance)}</td><td>${l.rate}%</td><td><button class="btn secondary" onclick="loanPayment('${l.id}')">Record Payment</button></td></tr>`).join('')}</table></div>`;
+}
+function addLoan(){const l={id:uid(),lender:v('ln'),original:+v('lo')||0,paid:0,balance:+v('lo')||0,rate:+v('lr')||0,date:v('ld')};if(!l.lender||!l.original)return alert('Enter lender and amount.');db.loans.push(l);save();loans()}
+function loanPayment(id){const l=db.loans.find(x=>x.id===id);const a=+prompt('Principal payment amount',0)||0;if(!a)return;l.paid+=a;l.balance=Math.max(0,l.original-l.paid);db.cashflow.push({id:uid(),date:new Date().toISOString(),ref:'LOAN-'+id,description:'Loan principal payment',account:'Cash',in:0,out:a});save();loans()}
+
+function assets(){
+ document.getElementById('app').innerHTML=`<div class="card"><h3>Fixed Assets</h3><div class="formgrid"><div><label>Asset</label><input id="an"></div><div><label>Purchase Date</label><input id="ad" type="date" value="${today()}"></div><div><label>Cost</label><input id="ac" type="number"></div><div><label>Accumulated Depreciation</label><input id="aad" type="number" value="0"></div><div><label>Useful Life (years)</label><input id="al" type="number"></div><div class="wide"><label>Notes</label><input id="anote"></div></div><div class="actions"><button class="btn green" onclick="addAsset()">Add Asset</button></div></div><div class="card" style="margin-top:14px"><h3>Asset Register</h3><table><tr><th>Asset</th><th>Cost</th><th>Accumulated Dep.</th><th>Book Value</th><th>Life</th></tr>${db.assets.map(a=>`<tr><td>${esc(a.name)}</td><td class="num">${money(a.cost)}</td><td class="num">${money(a.dep)}</td><td class="num">${money(Math.max(0,a.cost-a.dep))}</td><td>${a.life||''}</td></tr>`).join('')}</table></div>`;
+}
+function addAsset(){const a={id:uid(),name:v('an'),date:v('ad'),cost:+v('ac')||0,dep:+v('aad')||0,life:+v('al')||0,notes:v('anote')};if(!a.name||!a.cost)return alert('Enter asset and cost.');db.assets.push(a);save();assets()}
+
+function equity(){
+ document.getElementById('app').innerHTML=`<div class="card"><h3>Owner Equity</h3><div class="formgrid"><div><label>Date</label><input id="qd" type="date" value="${today()}"></div><div><label>Type</label><select id="qt"><option>Capital Introduced</option><option>Drawing</option><option>Other Equity</option></select></div><div><label>Amount</label><input id="qa" type="number"></div><div class="wide"><label>Description</label><input id="qdesc"></div></div><div class="actions"><button class="btn green" onclick="addEquity()">Save Equity Transaction</button></div></div><div class="card" style="margin-top:14px"><h3>Equity Transactions</h3><table><tr><th>Date</th><th>Type</th><th>Description</th><th>Amount</th></tr>${db.equity.map(e=>`<tr><td>${fmtDate(e.date)}</td><td>${esc(e.type)}</td><td>${esc(e.description)}</td><td class="num">${money(e.amount)}</td></tr>`).join('')}</table></div>`;
+}
+function addEquity(){const e={id:uid(),date:v('qd'),type:v('qt'),amount:+v('qa')||0,description:v('qdesc')};if(!e.amount)return alert('Enter amount.');db.equity.push(e);save();equity()}
+
+function reports(){
+ const rev=sum(db.sales,s=>s.total), cogs=sum(db.sales,s=>s.cost), op=sum(db.expenses,e=>e.amount), gp=rev-cogs, np=gp-op;
+ const cash=db.opening.cash+sum(db.cashflow,x=>x.account==='Cash'?x.in-x.out:0), bank=db.opening.bank+sum(db.cashflow,x=>x.account==='Bank'?x.in-x.out:0), mobile=db.opening.mobile+sum(db.cashflow,x=>x.account==='Mobile Money'?x.in-x.out:0);
+ const inv=sum(db.products,p=>p.stock*p.cost), ar=sum(db.sales,s=>s.credit?s.total-s.paid:0)-sum(db.receipts,r=>r.amount)+db.opening.receivables;
+ const ap=sum(db.purchases,p=>p.total-p.paid)+db.opening.payables, debt=sum(db.loans,l=>l.balance)+db.opening.debt, assets=inv+ar+cash+bank+mobile+sum(db.assets,a=>Math.max(0,a.cost-a.dep));
+ const eq=assets-ap-debt;
+ document.getElementById('app').innerHTML=`<div class="grid g2">
+ <div class="card"><h3>Income Statement</h3><table><tr><th>Revenue</th><td class="num">${money(rev)}</td></tr><tr><th>Cost of Goods Sold</th><td class="num">${money(cogs)}</td></tr><tr><th>Gross Profit</th><td class="num">${money(gp)}</td></tr><tr><th>Operating Expenses</th><td class="num">${money(op)}</td></tr><tr><th>Net Profit / (Loss)</th><td class="num"><b>${money(np)}</b></td></tr><tr><th>Profit Margin</th><td class="num">${rev?((np/rev)*100).toFixed(1):'0.0'}%</td></tr></table></div>
+ <div class="card"><h3>Balance Sheet</h3><table><tr><th>Cash / Bank / Mobile</th><td class="num">${money(cash+bank+mobile)}</td></tr><tr><th>Inventory</th><td class="num">${money(inv)}</td></tr><tr><th>Receivables</th><td class="num">${money(ar)}</td></tr><tr><th>Fixed Assets</th><td class="num">${money(sum(db.assets,a=>Math.max(0,a.cost-a.dep)))}</td></tr><tr><th>Total Assets</th><td class="num">${money(assets)}</td></tr><tr><th>Payables</th><td class="num">${money(ap)}</td></tr><tr><th>Debt</th><td class="num">${money(debt)}</td></tr><tr><th>Net Equity</th><td class="num">${money(eq)}</td></tr><tr><th>Control</th><td class="num">${Math.abs(assets-(ap+debt+eq))<.01?'BALANCED':'CHECK'}</td></tr></table></div></div>
+ <div class="card" style="margin-top:14px"><h3>Cash Accounts</h3><table><tr><th>Account</th><th>Balance</th></tr><tr><td>Cash</td><td class="num">${money(cash)}</td></tr><tr><td>Bank</td><td class="num">${money(bank)}</td></tr><tr><td>Mobile Money</td><td class="num">${money(mobile)}</td></tr></table></div>`;
+}
+
+function settings(){
+ document.getElementById('app').innerHTML=`<div class="grid g2"><div class="card"><h3>Company Setup & Opening Balances</h3><div class="formgrid">
+ <div class="wide"><label>Company Name</label><input id="sn" value="${esc(db.settings.company)}"></div><div><label>Tax Rate %</label><input id="st" type="number" value="${db.settings.taxRate}"></div>
+ ${['cash','bank','mobile','inventory','receivables','payables','debt','assets','equity'].map(k=>`<div><label>Opening ${k}</label><input id="ob_${k}" type="number" value="${db.opening[k]||0}"></div>`).join('')}
+ <div class="wide"><label>Receipt Footer</label><input id="sf" value="${esc(db.settings.receiptFooter)}"></div></div><div class="actions"><button class="btn green" onclick="saveSettings()">Save Setup</button></div></div>
+ <div class="card"><h3>Backup & Restore</h3><p class="muted">Back up the entire company database to a JSON file. Restore it later on this computer or another copy of the software.</p><div class="actions"><button class="btn" onclick="backup()">Download Backup</button><label class="btn secondary" style="display:inline-block"><input type="file" id="restoreFile" accept=".json" style="display:none" onchange="restore(event)">Restore Backup</label><button class="btn red" onclick="resetData()">Reset All Data</button></div><hr><h3>How the accounting works</h3><ul><li>A POS sale reduces stock and records sales revenue plus the payment account or receivable.</li><li>Product cost is kept separately so gross profit can be measured.</li><li>Purchases increase stock; payments reduce cash/bank/mobile or create supplier payable.</li><li>Expenses reduce profit and the selected cash account when paid.</li><li>Loans track principal separately from operating expenses.</li><li>Owner capital and drawings are tracked under equity.</li></ul></div></div>`;
+}
+function saveSettings(){
+ db.settings.company=v('sn');db.settings.taxRate=+v('st')||0;db.settings.receiptFooter=v('sf');
+ ['cash','bank','mobile','inventory','receivables','payables','debt','assets','equity'].forEach(k=>db.opening[k]=+v('ob_'+k)||0);save();alert('Setup saved.');settings();
+}
+function backup(){const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='DK_Liquor_POS_Backup_'+today()+'.json';a.click();URL.revokeObjectURL(a.href)}
+function restore(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{db=JSON.parse(r.result);save();alert('Backup restored.');show('dashboard')}catch(err){alert('Invalid backup file.')}};r.readAsText(f)}
+function resetData(){if(confirm('This deletes all local POS data. Make a backup first. Continue?')){localStorage.removeItem(KEY);location.reload()}}
+function salesTable(a){return `<table><tr><th>Date</th><th>Receipt</th><th>Customer</th><th>Payment</th><th>Total</th></tr>${a.map(s=>`<tr><td>${fmtDate(s.date)}</td><td>${s.number}</td><td>${esc(db.customers.find(c=>c.id===s.customer)?.name||'Walk-in')}</td><td>${s.method}</td><td class="num">${money(s.total)}</td></tr>`).join('')||'<tr><td colspan=5>No sales recorded.</td></tr>'}</table>`}
+function v(id){return document.getElementById(id)?.value||''}
+function del(key,id){db[key]=db[key].filter(x=>x.id!==id);save()}
+show('dashboard');
+</script>
+</body>
+</html>
